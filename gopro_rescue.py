@@ -60,6 +60,33 @@ def extract_ids(har_filename):
         print(f"❌ Error: Could not find '{har_filename}'. Make sure it's in the same folder as this script.")
         return None
 
+def fetch_ids_from_api(auth_token):
+    """Pages through your GoPro media library and returns every media ID, so no HAR file is needed."""
+    print("\n--- STEP 1: Fetching your media list from GoPro ---")
+    found_ids = []
+    page = 1
+    total_pages = 1
+
+    while page <= total_pages:
+        params = {"per_page": 100, "page": page, "fields": "id"}
+        response = requests.get("https://api.gopro.com/media/search", params=params, headers=api_headers(auth_token))
+        if response.status_code != 200:
+            print(f"❌ Failed to fetch page {page} of your media list (HTTP {response.status_code}).")
+            return None
+
+        content = response.json()
+        total_pages = content.get("_pages", {}).get("total_pages", 1)
+        found_ids.extend(item["id"] for item in content.get("_embedded", {}).get("media", []))
+        page += 1
+
+    found_ids = list(dict.fromkeys(found_ids))
+    if not found_ids:
+        print("❌ Your GoPro media library appears to be empty.")
+        return None
+
+    print(f"✅ Success! Found {len(found_ids)} unique video IDs.")
+    return found_ids
+
 def get_completed_ids():
     """Reads the ledger to see which videos have already been successfully extracted."""
     if not os.path.exists(COMPLETED_LOG):
@@ -164,11 +191,8 @@ if __name__ == "__main__":
         input("\nPress Enter to exit...")
         raise SystemExit(1)
 
-    har_input = input("Enter the name of your HAR file (Press Enter for default 'gopro.com.har'): ").strip()
-    if har_input == "":
-        har_input = "gopro.com.har"
-        
-    ids = extract_ids(har_input)
+    har_input = input("Enter the name of your HAR file (or press Enter to fetch your media list straight from GoPro): ").strip()
+    ids = extract_ids(har_input) if har_input else fetch_ids_from_api(auth_token)
     
     if ids:
         proceed = input("\nReady to start downloading? (y/n): ").strip().lower()
