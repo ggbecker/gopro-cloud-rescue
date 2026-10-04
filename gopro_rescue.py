@@ -46,7 +46,8 @@ def extract_ids(har_filename):
         with open(har_filename, 'r', encoding='utf-8', errors='ignore') as file:
             content = file.read()
             
-        pattern = r'\\"id\\":\\"([a-zA-Z0-9]{13})\\"'
+        # Older media use 13-character IDs; media uploaded since late 2025 use 24-character hex IDs
+        pattern = r'\\"id\\":\\"([a-zA-Z0-9]{13}|[0-9a-f]{24})\\"'
         found_ids = list(set(re.findall(pattern, content)))
         
         if not found_ids:
